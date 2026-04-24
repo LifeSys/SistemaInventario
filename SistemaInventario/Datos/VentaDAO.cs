@@ -39,8 +39,8 @@ public class VentaDAO(string connectionString)
     {
         const string queryStock = "SELECT Stock, Precio FROM Productos WHERE IdProducto = @idProducto";
         const string queryInsertVenta = @"
-            INSERT INTO Ventas (IdProducto, Cantidad, PrecioUnitario, Total, Fecha, IdUsuario)
-            VALUES (@idProducto, @cantidad, @precioUnitario, @total, GETDATE(), @idUsuario);";
+            INSERT INTO Ventas (IdProducto, Cantidad, PrecioUnitario, Fecha, IdUsuario)
+            VALUES (@idProducto, @cantidad, @precioUnitario, GETDATE(), @idUsuario);";
         const string queryUpdateStock = "UPDATE Productos SET Stock = Stock - @cantidad WHERE IdProducto = @idProducto";
 
         using var connection = new SqlConnection(connectionString);
@@ -70,13 +70,10 @@ public class VentaDAO(string connectionString)
                 return (false, "Stock insuficiente para completar la venta.");
             }
 
-            var total = precioUnitario * cantidad;
-
             using var cmdInsert = new SqlCommand(queryInsertVenta, connection, (SqlTransaction)transaction);
             cmdInsert.Parameters.AddWithValue("@idProducto", idProducto);
             cmdInsert.Parameters.AddWithValue("@cantidad", cantidad);
             cmdInsert.Parameters.AddWithValue("@precioUnitario", precioUnitario);
-            cmdInsert.Parameters.AddWithValue("@total", total);
             cmdInsert.Parameters.AddWithValue("@idUsuario", idUsuario);
             await cmdInsert.ExecuteNonQueryAsync();
 

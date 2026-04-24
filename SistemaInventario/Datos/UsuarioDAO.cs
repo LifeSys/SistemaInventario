@@ -8,15 +8,15 @@ public class UsuarioDAO(string connectionString)
     public async Task<Usuario?> ObtenerPorCredencialesAsync(string usuario, string passwordHash)
     {
         const string query = @"
-            SELECT Id, Usuario, Password, Rol
+            SELECT Id, Usuario, PasswordHash, Rol
             FROM Usuarios
-            WHERE Usuario = @usuario AND Password = @password";
+            WHERE Usuario = @usuario AND PasswordHash = @passwordHash";
 
         using var connection = new SqlConnection(connectionString);
         using var command = new SqlCommand(query, connection);
 
         command.Parameters.AddWithValue("@usuario", usuario);
-        command.Parameters.AddWithValue("@password", passwordHash);
+        command.Parameters.AddWithValue("@passwordHash", passwordHash);
 
         await connection.OpenAsync();
         using var reader = await command.ExecuteReaderAsync();
@@ -32,7 +32,7 @@ public class UsuarioDAO(string connectionString)
     public async Task<IReadOnlyList<Usuario>> ObtenerTodosAsync(string filtro = "")
     {
         const string baseQuery = @"
-            SELECT Id, Usuario, Password, Rol
+            SELECT Id, Usuario, PasswordHash, Rol
             FROM Usuarios
             WHERE @filtro = '' OR Usuario LIKE @texto
             ORDER BY Usuario";
@@ -60,15 +60,15 @@ public class UsuarioDAO(string connectionString)
     public async Task<int> InsertarAsync(Usuario usuario)
     {
         const string query = @"
-            INSERT INTO Usuarios (Usuario, Password, Rol)
-            VALUES (@usuario, @password, @rol);
+            INSERT INTO Usuarios (Usuario, PasswordHash, Rol)
+            VALUES (@usuario, @passwordHash, @rol);
             SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
         using var connection = new SqlConnection(connectionString);
         using var command = new SqlCommand(query, connection);
 
         command.Parameters.AddWithValue("@usuario", usuario.NombreUsuario);
-        command.Parameters.AddWithValue("@password", usuario.PasswordHash);
+        command.Parameters.AddWithValue("@passwordHash", usuario.PasswordHash);
         command.Parameters.AddWithValue("@rol", usuario.Rol);
 
         await connection.OpenAsync();
@@ -82,7 +82,7 @@ public class UsuarioDAO(string connectionString)
         const string query = @"
             UPDATE Usuarios
             SET Usuario = @usuario,
-                Password = @password,
+                PasswordHash = @passwordHash,
                 Rol = @rol
             WHERE Id = @id";
 
@@ -91,7 +91,7 @@ public class UsuarioDAO(string connectionString)
 
         command.Parameters.AddWithValue("@id", usuario.Id);
         command.Parameters.AddWithValue("@usuario", usuario.NombreUsuario);
-        command.Parameters.AddWithValue("@password", usuario.PasswordHash);
+        command.Parameters.AddWithValue("@passwordHash", usuario.PasswordHash);
         command.Parameters.AddWithValue("@rol", usuario.Rol);
 
         await connection.OpenAsync();

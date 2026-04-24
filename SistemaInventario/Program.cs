@@ -1,17 +1,21 @@
-namespace SistemaInventario
+using SistemaInventario.Datos;
+using SistemaInventario.Negocio;
+using SistemaInventario.Presentacion;
+
+namespace SistemaInventario;
+
+internal static class Program
 {
-    internal static class Program
+    private const string ConnectionString = "Server=localhost\\SQLEXPRESS;Database=InventarioDB;Trusted_Connection=True;TrustServerCertificate=True;";
+
+    [STAThread]
+    static void Main()
     {
-        /// <summary>
-        ///  The main entry point for the application.
-        /// </summary>
-        [STAThread]
-        static void Main()
-        {
-            // To customize application configuration such as set high DPI settings or default font,
-            // see https://aka.ms/applicationconfiguration.
-            ApplicationConfiguration.Initialize();
-            Application.Run(new Form1());
-        }
+        ApplicationConfiguration.Initialize();
+
+        var productoRepository = new ProductoDAO(ConnectionString);
+        var productoService = new ProductoService(productoRepository);
+
+        Application.Run(new Form1(productoService));
     }
 }

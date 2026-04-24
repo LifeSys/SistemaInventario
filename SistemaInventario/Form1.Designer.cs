@@ -1,4 +1,4 @@
-﻿namespace SistemaInventario
+﻿namespace SistemaInventario.Presentacion
 {
     partial class Form1
     {
@@ -42,6 +42,7 @@
             btnNuevo = new Button();
             btnBuscar = new Button();
             txtBuscar = new TextBox();
+            lblEstado = new Label();
             ((System.ComponentModel.ISupportInitialize)dgvProductos).BeginInit();
             SuspendLayout();
             // 
@@ -168,12 +169,23 @@
             txtBuscar.Name = "txtBuscar";
             txtBuscar.Size = new Size(100, 23);
             txtBuscar.TabIndex = 14;
+            txtBuscar.TextChanged += txtBuscar_TextChanged;
+            // 
+            // lblEstado
+            // 
+            lblEstado.AutoSize = true;
+            lblEstado.Location = new Point(70, 420);
+            lblEstado.Name = "lblEstado";
+            lblEstado.Size = new Size(79, 15);
+            lblEstado.TabIndex = 15;
+            lblEstado.Text = "Estado: Nuevo";
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(660, 547);
+            Controls.Add(lblEstado);
             Controls.Add(txtBuscar);
             Controls.Add(btnBuscar);
             Controls.Add(btnNuevo);
@@ -189,7 +201,7 @@
             Controls.Add(lblPrecio);
             Controls.Add(lblNombre);
             Name = "Form1";
-            Text = "Form1";
+            Text = "Sistema de Inventario";
             Load += Form1_Load;
             ((System.ComponentModel.ISupportInitialize)dgvProductos).EndInit();
             ResumeLayout(false);
@@ -212,5 +224,6 @@
         private Button btnNuevo;
         private Button btnBuscar;
         private TextBox txtBuscar;
+        private Label lblEstado;
     }
 }

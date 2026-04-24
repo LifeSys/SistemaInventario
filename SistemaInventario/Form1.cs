@@ -1,201 +1,220 @@
-using System.Data;
-using Microsoft.Data.SqlClient;
+using SistemaInventario.Entidades;
+using SistemaInventario.Negocio;
 
-namespace SistemaInventario
+namespace SistemaInventario.Presentacion;
+
+public partial class Form1 : Form
 {
-    public partial class Form1 : Form
+    private readonly ProductoService _productoService;
+    private int _idSeleccionado;
+    private FormMode _modo = FormMode.Nuevo;
+
+    private enum FormMode
     {
-        string conexion = "Server=localhost\\SQLEXPRESS;Database=InventarioDB;Trusted_Connection=True;TrustServerCertificate=True;";
-        int idSeleccionado = 0;
+        Nuevo,
+        Editar
+    }
 
-        public Form1()
+    public Form1(ProductoService productoService)
+    {
+        _productoService = productoService;
+        InitializeComponent();
+    }
+
+    private async void Form1_Load(object sender, EventArgs e)
+    {
+        await CargarDatosAsync();
+        LimpiarCampos();
+    }
+
+    private async Task CargarDatosAsync()
+    {
+        try
         {
-            InitializeComponent();
+            var productos = await _productoService.ObtenerProductosAsync();
+            dgvProductos.DataSource = productos;
+        }
+        catch (Exception)
+        {
+            MessageBox.Show("Ocurrió un error al cargar los productos.", "Inventario", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void LimpiarCampos()
+    {
+        txtNombre.Clear();
+        txtPrecio.Clear();
+        txtStock.Clear();
+        txtNombre.Focus();
+
+        _idSeleccionado = 0;
+        CambiarModo(FormMode.Nuevo);
+    }
+
+    private void CargarProductoSeleccionado(DataGridViewRow fila)
+    {
+        _idSeleccionado = Convert.ToInt32(fila.Cells[nameof(Producto.IdProducto)].Value);
+        txtNombre.Text = fila.Cells[nameof(Producto.Nombre)].Value?.ToString();
+        txtPrecio.Text = fila.Cells[nameof(Producto.Precio)].Value?.ToString();
+        txtStock.Text = fila.Cells[nameof(Producto.Stock)].Value?.ToString();
+        CambiarModo(FormMode.Editar);
+    }
+
+    private Producto? ObtenerProductoDesdeFormulario()
+    {
+        if (!decimal.TryParse(txtPrecio.Text.Trim(), out var precio))
+        {
+            MessageBox.Show("Ingrese un precio válido.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            txtPrecio.Focus();
+            return null;
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        if (!int.TryParse(txtStock.Text.Trim(), out var stock))
         {
-            Listar();
+            MessageBox.Show("Ingrese un stock válido.", "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            txtStock.Focus();
+            return null;
         }
 
-        // ================= VALIDAR =================
-        bool Validar()
+        return new Producto
         {
-            if (string.IsNullOrWhiteSpace(txtNombre.Text))
-            {
-                MessageBox.Show("Ingrese nombre");
-                return false;
-            }
+            IdProducto = _idSeleccionado,
+            Nombre = txtNombre.Text.Trim(),
+            Precio = precio,
+            Stock = stock
+        };
+    }
 
-            if (!decimal.TryParse(txtPrecio.Text, out _))
-            {
-                MessageBox.Show("Precio inválido");
-                return false;
-            }
+    private void CambiarModo(FormMode modo)
+    {
+        _modo = modo;
+        lblEstado.Text = modo == FormMode.Nuevo ? "Estado: Nuevo" : "Estado: Edición";
+        btnGuardar.Enabled = modo == FormMode.Nuevo;
+        btnActualizar.Enabled = modo == FormMode.Editar;
+        btnEliminar.Enabled = modo == FormMode.Editar;
+    }
 
-            if (!int.TryParse(txtStock.Text, out _))
-            {
-                MessageBox.Show("Stock inválido");
-                return false;
-            }
+    private async void btnGuardar_Click(object sender, EventArgs e)
+    {
+        var producto = ObtenerProductoDesdeFormulario();
+        if (producto is null) return;
 
-            return true;
+        try
+        {
+            var resultado = await _productoService.CrearProductoAsync(producto);
+            MessageBox.Show(resultado.Mensaje, "Inventario", MessageBoxButtons.OK,
+                resultado.Exito ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+
+            if (!resultado.Exito) return;
+
+            await CargarDatosAsync();
+            LimpiarCampos();
+        }
+        catch (Exception)
+        {
+            MessageBox.Show("No fue posible guardar el producto.", "Inventario", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private async void btnActualizar_Click(object sender, EventArgs e)
+    {
+        if (_modo != FormMode.Editar)
+        {
+            MessageBox.Show("Seleccione un producto para editar.", "Inventario", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
         }
 
-        // ================= LIMPIAR =================
-        void Limpiar()
+        var producto = ObtenerProductoDesdeFormulario();
+        if (producto is null) return;
+
+        try
         {
-            txtNombre.Clear();
-            txtPrecio.Clear();
-            txtStock.Clear();
-            txtNombre.Focus();
-            idSeleccionado = 0;
+            var resultado = await _productoService.ActualizarProductoAsync(producto);
+            MessageBox.Show(resultado.Mensaje, "Inventario", MessageBoxButtons.OK,
+                resultado.Exito ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+
+            if (!resultado.Exito) return;
+
+            await CargarDatosAsync();
+            LimpiarCampos();
+        }
+        catch (Exception)
+        {
+            MessageBox.Show("No fue posible actualizar el producto.", "Inventario", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private async void btnEliminar_Click(object sender, EventArgs e)
+    {
+        if (_modo != FormMode.Editar)
+        {
+            MessageBox.Show("Seleccione un producto para eliminar.", "Inventario", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
         }
 
-        // ================= LISTAR =================
-        void Listar()
+        var confirmacion = MessageBox.Show(
+            "¿Desea eliminar el producto seleccionado?",
+            "Confirmar eliminación",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+
+        if (confirmacion != DialogResult.Yes) return;
+
+        try
         {
-            using (SqlConnection con = new SqlConnection(conexion))
-            {
-                SqlDataAdapter da = new SqlDataAdapter("SELECT * FROM Productos", con);
-                DataTable dt = new DataTable();
-                da.Fill(dt);
-                dgvProductos.DataSource = dt;
-            }
-        }
+            var resultado = await _productoService.EliminarProductoAsync(_idSeleccionado);
+            MessageBox.Show(resultado.Mensaje, "Inventario", MessageBoxButtons.OK,
+                resultado.Exito ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
 
-        // ================= GUARDAR =================
-        private void btnGuardar_Click(object sender, EventArgs e)
+            if (!resultado.Exito) return;
+
+            await CargarDatosAsync();
+            LimpiarCampos();
+        }
+        catch (Exception)
         {
-            if (!Validar()) return;
-
-            using (SqlConnection con = new SqlConnection(conexion))
-            {
-                con.Open();
-
-                string query = "INSERT INTO Productos (Nombre, Precio, Stock) VALUES (@n, @p, @s)";
-                SqlCommand cmd = new SqlCommand(query, con);
-
-                cmd.Parameters.AddWithValue("@n", txtNombre.Text);
-                cmd.Parameters.AddWithValue("@p", decimal.Parse(txtPrecio.Text));
-                cmd.Parameters.AddWithValue("@s", int.Parse(txtStock.Text));
-
-                cmd.ExecuteNonQuery();
-            }
-
-            MessageBox.Show("Producto guardado correctamente");
-            Listar();
-            Limpiar();
+            MessageBox.Show("No fue posible eliminar el producto.", "Inventario", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
 
-        // ================= LISTAR BOTÓN =================
-        private void btnListar_Click(object sender, EventArgs e)
+    private void btnNuevo_Click(object sender, EventArgs e)
+    {
+        LimpiarCampos();
+    }
+
+    private async void btnListar_Click(object sender, EventArgs e)
+    {
+        await CargarDatosAsync();
+    }
+
+    private async void btnBuscar_Click(object sender, EventArgs e)
+    {
+        await BuscarAsync();
+    }
+
+    private async void txtBuscar_TextChanged(object sender, EventArgs e)
+    {
+        await BuscarAsync();
+    }
+
+    private async Task BuscarAsync()
+    {
+        try
         {
-            Listar();
+            var productos = await _productoService.BuscarProductosAsync(txtBuscar.Text);
+            dgvProductos.DataSource = productos;
         }
-
-        // ================= SELECCIONAR FILA =================
-        private void dgvProductos_CellClick(object sender, DataGridViewCellEventArgs e)
+        catch (Exception)
         {
-            if (e.RowIndex >= 0)
-            {
-                var fila = dgvProductos.Rows[e.RowIndex];
-
-                idSeleccionado = Convert.ToInt32(fila.Cells["IdProducto"].Value);
-                txtNombre.Text = fila.Cells["Nombre"].Value.ToString();
-                txtPrecio.Text = fila.Cells["Precio"].Value.ToString();
-                txtStock.Text = fila.Cells["Stock"].Value.ToString();
-            }
+            MessageBox.Show("Ocurrió un error durante la búsqueda.", "Inventario", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
 
-        // ================= ACTUALIZAR =================
-        private void btnActualizar_Click(object sender, EventArgs e)
-        {
-            if (idSeleccionado == 0)
-            {
-                MessageBox.Show("Seleccione un producto");
-                return;
-            }
+    private void dgvProductos_CellClick(object sender, DataGridViewCellEventArgs e)
+    {
+        if (e.RowIndex < 0) return;
 
-            if (!Validar()) return;
-
-            using (SqlConnection con = new SqlConnection(conexion))
-            {
-                con.Open();
-
-                string query = @"UPDATE Productos 
-                                 SET Nombre=@n, Precio=@p, Stock=@s 
-                                 WHERE IdProducto=@id";
-
-                SqlCommand cmd = new SqlCommand(query, con);
-                cmd.Parameters.AddWithValue("@n", txtNombre.Text);
-                cmd.Parameters.AddWithValue("@p", decimal.Parse(txtPrecio.Text));
-                cmd.Parameters.AddWithValue("@s", int.Parse(txtStock.Text));
-                cmd.Parameters.AddWithValue("@id", idSeleccionado);
-
-                cmd.ExecuteNonQuery();
-            }
-
-            MessageBox.Show("Producto actualizado");
-            Listar();
-            Limpiar();
-        }
-
-        // ================= ELIMINAR =================
-        private void btnEliminar_Click(object sender, EventArgs e)
-        {
-            if (idSeleccionado == 0)
-            {
-                MessageBox.Show("Seleccione un producto");
-                return;
-            }
-
-            var r = MessageBox.Show("¿Eliminar producto?", "Confirmar", MessageBoxButtons.YesNo);
-            if (r != DialogResult.Yes) return;
-
-            using (SqlConnection con = new SqlConnection(conexion))
-            {
-                con.Open();
-
-                string query = "DELETE FROM Productos WHERE IdProducto=@id";
-                SqlCommand cmd = new SqlCommand(query, con);
-                cmd.Parameters.AddWithValue("@id", idSeleccionado);
-
-                cmd.ExecuteNonQuery();
-            }
-
-            MessageBox.Show("Producto eliminado");
-            Listar();
-            Limpiar();
-        }
-
-        // ================= NUEVO =================
-        private void btnNuevo_Click(object sender, EventArgs e)
-        {
-            Limpiar();
-        }
-
-        // ================= BUSCAR =================
-        private void btnBuscar_Click(object sender, EventArgs e)
-        {
-            using (SqlConnection con = new SqlConnection(conexion))
-            {
-                string query = "SELECT * FROM Productos WHERE Nombre LIKE @buscar";
-
-                SqlDataAdapter da = new SqlDataAdapter(query, con);
-                da.SelectCommand.Parameters.AddWithValue("@buscar", "%" + txtBuscar.Text + "%");
-
-                DataTable dt = new DataTable();
-                da.Fill(dt);
-
-                dgvProductos.DataSource = dt;
-            }
-        }
-
-        // ================= EVENTOS VACÍOS (EVITAR ERRORES) =================
-        private void txtNombre_TextChanged(object sender, EventArgs e) { }
-        private void txtPrecio_TextChanged(object sender, EventArgs e) { }
-        private void txtStock_TextChanged(object sender, EventArgs e) { }
-        private void dgvProductos_CellContentClick(object sender, DataGridViewCellEventArgs e) { }
+        var fila = dgvProductos.Rows[e.RowIndex];
+        CargarProductoSeleccionado(fila);
     }
 }

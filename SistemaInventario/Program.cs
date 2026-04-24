@@ -16,6 +16,18 @@ internal static class Program
         var productoRepository = new ProductoDAO(ConnectionString);
         var productoService = new ProductoService(productoRepository);
 
-        Application.Run(new Form1(productoService));
+        var usuarioDao = new UsuarioDAO(ConnectionString);
+        var usuarioService = new UsuarioService(usuarioDao);
+
+        var ventaDao = new VentaDAO(ConnectionString);
+        var ventaService = new VentaService(ventaDao, productoRepository);
+
+        MainForm MainFactory() => new MainForm(
+            () => new Form1(productoService),
+            () => new VentaForm(ventaService),
+            () => new UsuarioForm(usuarioService),
+            () => new ReporteForm(ventaService));
+
+        Application.Run(new LoginForm(usuarioService, MainFactory));
     }
 }
